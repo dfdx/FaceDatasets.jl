@@ -23,13 +23,17 @@ end
 ############### Cohn-Kanade+ dataset #####################
 
 
-function load_images_ck(datadir::String; start=1, count=-1, resizeratio=1.0)
+function load_images_ck(datadir::String; start=1, count=-1,
+                        resizeratio=1.0, indexes=[])
     @assert(datadir != "", "`datadir` parameter should be specified and point " *
             "to a directory with downloaded CK+ dataset")
     imgdir = joinpath(datadir, "cohn-kanade-images")
     @assert(isdir(imgdir), "Expected to have image directory at $imgedir, " *
             "but it doesn't exist or is not a directory (have you unzipped data?)")
     paths = sort(walkdir(imgdir, pred=(p -> endswith(p, ".png"))))
+    if indexes != []
+        paths = paths[indexes]
+    end
     num = count != -1 ? count : length(paths)  # if count == -1, read all
     num = min(num, length(paths) - start + 1)  # don't cross the bounds
     imgs = Array(Matrix{Float64}, num)
@@ -57,23 +61,28 @@ function load_shape_ck(path::String)
 end
 
 
-function load_shapes_ck(datadir::String; start=1, count=-1, resizeratio=1.0)
+function load_shapes_ck(datadir::String; start=1, count=-1,
+                        resizeratio=1.0, indexes=[])
     @assert(datadir != "", "`datadir` parameter should be specified and point " *
             "to a directory with downloaded CK+ dataset")
     shapedir = joinpath(datadir, "Landmarks")
     @assert(isdir(shapedir), "Expected to have shape directory at $shapedir, " *
             "but it doesn't exist or is not a directory (have you unzipped data?)")    
     paths = sort(walkdir(shapedir, pred=(p -> endswith(p, ".txt"))))
+    paths = paths[[1:6790-1, 6790+1:end]]
+    if indexes != []
+        paths = paths[indexes]
+    end
     num = count != -1 ? count : length(paths)      # if count == -1, read all
-    num = min(num, length(paths) - start + 1 - 1)  # don't cross the bounds; -1 is to fix
+    # num = min(num, length(paths) - start + 1 - 1)  # don't cross the bounds; -1 is to fix
                                                    # issue with additional shape file
     shapes = Array(Matrix{Float64}, num)
     for i=1:num
         # for some reason CK+ dataset contains one additional landmark file
         # for non existing image
-        if basename(paths[start + i - 1]) == "S109_002_00000008_landmarks.txt"
-            start += 1
-        end
+        ## if basename(paths[start + i - 1]) == "S109_002_00000008_landmarks.txt"
+        ##     start += 1
+        ## end
         shape_xy = load_shape_ck(paths[start + i - 1])
         shapes[i] = resizeratio .* [shape_xy[:, 2] shape_xy[:, 1]]
     end
@@ -122,20 +131,26 @@ end
 const AVAILABLE_DATASETS = [:ck, :cootes]
 
 
-function load_images(dataset_name::Symbol; datadir="", start=1, count=-1, resizeratio=1.0)
+function load_images(dataset_name::Symbol; datadir="", start=1, count=-1,
+                     resizeratio=1.0, indexes=[])
     if dataset_name == :ck
-        return load_images_ck(datadir, start=start, count=count, resizeratio=resizeratio)
+        return load_images_ck(datadir, start=start, count=count,
+                              resizeratio=resizeratio, indexes=indexes)
     elseif dataset_name == :cootes
         return load_images_cootes(count=count)
     else
-        error("Dataset $dataset_name is not supported, available datasets: $AVAILABLE_DATASETS")
+        error("Dataset $dataset_name is not supported, " *
+              "available datasets: $AVAILABLE_DATASETS")
     end
 end
 
 
-function load_shapes(dataset_name::Symbol; datadir="", start=1, count=-1, resizeratio=1.0)
+function load_shapes(dataset_name::Symbol;
+                     datadir="", start=1, count=-1,
+                     resizeratio=1.0, indexes=[])
     if dataset_name == :ck
-        return load_shapes_ck(datadir, start=start, count=count, resizeratio=resizeratio)
+        return load_shapes_ck(datadir, start=start, count=count,
+                              resizeratio=resizeratio, indexes=indexes)
     elseif dataset_name == :cootes
         return load_shapes_cootes(count=count)
      else
