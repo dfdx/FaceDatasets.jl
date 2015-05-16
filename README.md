@@ -1,5 +1,7 @@
 # FaceDatasets
 
+[![Build Status](https://travis-ci.org/dfdx/FaceDatasets.jl.svg)](https://travis-ci.org/dfdx/FaceDatasets.jl)
+
 Package for making access to popular face datasets easier.
 
 ## General usage

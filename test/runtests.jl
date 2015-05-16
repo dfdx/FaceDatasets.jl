@@ -1,4 +1,4 @@
-using FaceData
+using FaceDatasets
 using Base.Test
 
 # write your own tests here
