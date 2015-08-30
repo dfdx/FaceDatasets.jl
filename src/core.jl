@@ -1,5 +1,6 @@
 
 using Images
+using Colors
 using MAT
 
 Base.convert{T}(::Type{Matrix{Float64}}, img::Image{Gray{T}}) =
