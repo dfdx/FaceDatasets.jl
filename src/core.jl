@@ -120,7 +120,7 @@ function load_images_cootes(;count=-1)
     imgs = Array(Array{Float64, 3}, n_use)    
     for i=1:n_use
         img_rgb = imread(paths[i])
-        img_rgb = convert(Image{RGB{U8}}, img_rgb)  # ensure 3-channel RGB
+        img_rgb = convert(Image{RGB{Float64}}, img_rgb)  # ensure 3-channel RGB
         imgs[i] = convert(Array, separate(img_rgb))
     end    
     return imgs
