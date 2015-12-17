@@ -9,7 +9,7 @@ Base.convert{T}(::Type{Matrix{Float64}}, img::Image{Gray{T}}) =
 
 function walkdir(dir; pred=(_ -> true))
     paths = [joinpath(dir, filename) for filename in readdir(dir)]
-    result = Array(String, 0)
+    result = Array(AbstractString, 0)
     for path in paths
         if isdir(path)
             append!(result, walkdir(path, pred=pred))
@@ -24,12 +24,13 @@ end
 ############### Cohn-Kanade+ dataset #####################
 
 
-function load_images_ck(datadir::String; start=1, count=-1,
+function load_images_ck(datadir::AbstractString; start=1, count=-1,
                         resizeratio=1.0, indexes=[])
-    @assert(datadir != "", "`datadir` parameter should be specified and point " *
+    @assert(datadir != "", "`datadir`
+parameter should be specified and point " *
             "to a directory with downloaded CK+ dataset")
     imgdir = joinpath(datadir, "cohn-kanade-images")
-    @assert(isdir(imgdir), "Expected to have image directory at $imgedir, " *
+    @assert(isdir(imgdir), "Expected to have image directory at $imgdir, " *
             "but it doesn't exist or is not a directory (have you unzipped data?)")
     paths = sort(walkdir(imgdir, pred=(p -> endswith(p, ".png"))))
     if indexes != []
@@ -39,9 +40,9 @@ function load_images_ck(datadir::String; start=1, count=-1,
     num = min(num, length(paths) - start + 1)  # don't cross the bounds
     imgs = Array(Matrix{Float64}, num)
     for i=1:num
-        img = imread(paths[start + i - 1])
+        img = load(paths[start + i - 1])
         h, w = size(img)
-        new_size = (int(resizeratio * h), int(resizeratio * w))
+        new_size = (round(Int, resizeratio * h), round(Int, resizeratio * w))
         img = Images.imresize(img, new_size)
         if colorspace(img) != "Gray"
             img = convert(Array{Gray}, img)
@@ -55,14 +56,14 @@ function load_images_ck(datadir::String; start=1, count=-1,
 end
 
 
-function load_shape_ck(path::String)
+function load_shape_ck(path::AbstractString)
     open(path) do file
         readdlm(file)
     end
 end
 
 
-function load_shapes_ck(datadir::String; start=1, count=-1,
+function load_shapes_ck(datadir::AbstractString; start=1, count=-1,
                         resizeratio=1.0, indexes=[])
     @assert(datadir != "", "`datadir` parameter should be specified and point " *
             "to a directory with downloaded CK+ dataset")
@@ -96,7 +97,7 @@ end
 const COOTES_DATA_DIR = joinpath(Pkg.dir(), "FaceDatasets", "data", "cootes", "data")
 const COOTES_IMG_HEIGHT = 480
 
-function load_shape_from_mat(path::String)
+function load_shape_from_mat(path::AbstractString)
     return matread(path)["annotations"]
 end
 
@@ -119,7 +120,7 @@ function load_images_cootes(;count=-1)
     n_use = count > 0 ? count : length(paths)
     imgs = Array(Array{Float64, 3}, n_use)    
     for i=1:n_use
-        img_rgb = imread(paths[i])
+        img_rgb = load(paths[i])
         img_rgb = convert(Image{RGB{Float64}}, img_rgb)  # ensure 3-channel RGB
         imgs[i] = convert(Array, separate(img_rgb))
     end    
