@@ -69,9 +69,9 @@ function load_shapes_ck(datadir::AbstractString; start=1, count=-1,
             "to a directory with downloaded CK+ dataset")
     shapedir = joinpath(datadir, "Landmarks")
     @assert(isdir(shapedir), "Expected to have shape directory at $shapedir, " *
-            "but it doesn't exist or is not a directory (have you unzipped data?)")    
+            "but it doesn't exist or is not a directory (have you unzipped data?)")
     paths = sort(walkdir(shapedir, pred=(p -> endswith(p, ".txt"))))
-    paths = paths[[1:6790-1, 6790+1:end]]
+    paths = paths[[1:6790-1; 6790+1:end]]
     if indexes != []
         paths = paths[indexes]
     end
@@ -92,6 +92,70 @@ function load_shapes_ck(datadir::AbstractString; start=1, count=-1,
 end
 
 
+############### Cohn-Kanade+ dataset (max only) #####################
+
+
+function collect_last_items(img_or_lm_dir::AbstractString)
+    paths = AbstractString[]
+    for subj_subdir in readdir(img_or_lm_dir)
+        subj_dir = joinpath(img_or_lm_dir, subj_subdir)
+        isdir(subj_dir) || continue
+        for expr_subdir in readdir(subj_dir)
+            expr_dir = joinpath(subj_dir, expr_subdir)
+            isdir(expr_dir) || continue
+            items = sort(readdir(expr_dir))
+            push!(paths, joinpath(expr_dir, items[end]))
+        end
+    end
+    return paths
+end
+
+
+function load_images_ck_max(datadir::AbstractString; resizeratio=1.0)
+    @assert(datadir != "", "`datadir`
+parameter should be specified and point " *
+            "to a directory with downloaded CK+ dataset")
+    imgdir = joinpath(datadir, "cohn-kanade-images")
+    @assert(isdir(imgdir), "Expected to have image directory at $imgdir, " *
+            "but it doesn't exist or is not a directory (have you unzipped data?)")
+    paths = sort(collect_last_items(imgdir))
+    num = length(paths)
+    imgs = Array(Matrix{Float64}, num)
+    for i=1:num
+        img = load(paths[i])
+        h, w = size(img)
+        new_size = (round(Int, resizeratio * h), round(Int, resizeratio * w))
+        img = Images.imresize(img, new_size)
+        if colorspace(img) != "Gray"
+            img = convert(Array{Gray}, img)
+        end
+        imgs[i] = convert(Matrix{Float64}, img)
+        if i % 100 == 0
+            info("$i images read")
+        end
+    end
+    return imgs
+end
+
+
+function load_shapes_ck_max(datadir::AbstractString; resizeratio=1.0)
+    @assert(datadir != "", "`datadir` parameter should be specified and point " *
+            "to a directory with downloaded CK+ dataset")
+    shapedir = joinpath(datadir, "Landmarks")
+    @assert(isdir(shapedir), "Expected to have shape directory at $shapedir, " *
+            "but it doesn't exist or is not a directory (have you unzipped data?)")
+    paths = sort(collect_last_items(shapedir))
+    num = length(paths)
+    shapes = Array(Matrix{Float64}, num)
+    for i=1:num
+        shape_xy = load_shape_ck(paths[i])
+        shapes[i] = resizeratio .* [shape_xy[:, 2] shape_xy[:, 1]]
+    end
+    return shapes
+end
+
+
+
 ############### Cootes images (from ICAAM) ###################
 
 const COOTES_DATA_DIR = joinpath(Pkg.dir(), "FaceDatasets", "data", "cootes", "data")
@@ -101,7 +165,7 @@ function load_shape_from_mat(path::AbstractString)
     return matread(path)["annotations"]
 end
 
-function load_shapes_cootes(;count=-1) 
+function load_shapes_cootes(;count=-1)
     files = sort(filter(x -> endswith(x, ".mat"), readdir(COOTES_DATA_DIR)))
     paths = map(x->joinpath(COOTES_DATA_DIR, x), files)
     n_use = count > 0 ? count : length(paths)
@@ -109,21 +173,21 @@ function load_shapes_cootes(;count=-1)
     for k=1:n_use
         shape_xy = load_shape_from_mat(paths[k])
         shape_ij = [COOTES_IMG_HEIGHT .- shape_xy[:, 2] shape_xy[:, 1]]
-        shapes[k] = shape_ij        
+        shapes[k] = shape_ij
     end
     return shapes
 end
 
-function load_images_cootes(;count=-1)    
+function load_images_cootes(;count=-1)
     files = sort(filter(x->endswith(x, ".bmp"), readdir(COOTES_DATA_DIR)))
     paths = map(x->joinpath(COOTES_DATA_DIR, x), files)
     n_use = count > 0 ? count : length(paths)
-    imgs = Array(Array{Float64, 3}, n_use)    
+    imgs = Array(Array{Float64, 3}, n_use)
     for i=1:n_use
         img_rgb = load(paths[i])
         img_rgb = convert(Image{RGB{Float64}}, img_rgb)  # ensure 3-channel RGB
         imgs[i] = convert(Array, separate(img_rgb))
-    end    
+    end
     return imgs
 end
 
@@ -139,8 +203,10 @@ function load_images(dataset_name::Symbol; datadir="", start=1, count=-1,
     if dataset_name == :ck
         return load_images_ck(datadir, start=start, count=count,
                               resizeratio=resizeratio, indexes=indexes)
+    elseif dataset_name == :ck_max
+        return load_images_ck_max(datadir, resizeratio=resizeratio)
     elseif dataset_name == :cootes
-        return load_images_cootes(count=count)
+        return load_images_cootes(count=count)        
     else
         error("Dataset $dataset_name is not supported, " *
               "available datasets: $AVAILABLE_DATASETS")
@@ -154,12 +220,11 @@ function load_shapes(dataset_name::Symbol;
     if dataset_name == :ck
         return load_shapes_ck(datadir, start=start, count=count,
                               resizeratio=resizeratio, indexes=indexes)
+    elseif dataset_name == :ck_max
+        return load_shapes_ck_max(datadir, resizeratio=resizeratio)
     elseif dataset_name == :cootes
         return load_shapes_cootes(count=count)
      else
         error("Dataset $dataset_name is not supported, available datasets: $AVAILABLE_DATASETS")
     end
 end
-
-
-
