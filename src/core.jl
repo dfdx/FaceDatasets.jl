@@ -2,6 +2,7 @@
 using Images
 using Colors
 using MAT
+using Compat
 
 Base.convert{T}(::Type{Matrix{Float64}}, img::Image{Gray{T}}) =
     convert(Array{Float64, 2}, convert(Array, img))
