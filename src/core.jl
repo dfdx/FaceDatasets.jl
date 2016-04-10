@@ -71,6 +71,8 @@ function load_shapes_ck(datadir::AbstractString; start=1, count=-1,
     @assert(isdir(shapedir), "Expected to have shape directory at $shapedir, " *
             "but it doesn't exist or is not a directory (have you unzipped data?)")
     paths = sort(walkdir(shapedir, pred=(p -> endswith(p, ".txt"))))
+    # for some reason CK+ dataset contains one additional landmark file
+    # for non existing image
     paths = paths[[1:6790-1; 6790+1:end]]
     if indexes != []
         paths = paths[indexes]
@@ -80,16 +82,44 @@ function load_shapes_ck(datadir::AbstractString; start=1, count=-1,
                                                    # issue with additional shape file
     shapes = Array(Matrix{Float64}, num)
     for i=1:num
-        # for some reason CK+ dataset contains one additional landmark file
-        # for non existing image
-        ## if basename(paths[start + i - 1]) == "S109_002_00000008_landmarks.txt"
-        ##     start += 1
-        ## end
         shape_xy = load_shape_ck(paths[start + i - 1])
         shapes[i] = resizeratio .* [shape_xy[:, 2] shape_xy[:, 1]]
     end
     return shapes
 end
+
+
+function img_path_to_label_path(img_path::AbstractString)
+    img_dir = dirname(img_path)
+    dir = replace(img_dir, "cohn-kanade-images", "Emotion")
+    isdir(dir) || return ""
+    filenames = readdir(dir)
+    if length(filenames) > 0
+        return joinpath(dir, filenames[1])
+    else
+        return ""
+    end
+end
+
+function load_labels_ck(datadir::AbstractString)
+    @assert(datadir != "", "`datadir` parameter should be specified and " *
+            "pointo a directory with downloaded CK+ dataset")
+    imgdir = joinpath(datadir, "cohn-kanade-images")
+    img_paths = sort(collect_last_items(imgdir))
+    paths = map(img_path_to_label_path, img_paths)
+    num = length(paths)
+    labels = Array(Float64, num)
+    for i=1:num
+        if isfile(paths[i])
+            txt = open(readall, paths[i])
+            labels[i] = parse(Float64, txt)
+        else
+            labels[i] = -1
+        end
+    end
+    return labels
+end
+
 
 
 ############### Cohn-Kanade+ dataset (max only) #####################
@@ -155,7 +185,6 @@ function load_shapes_ck_max(datadir::AbstractString; resizeratio=1.0)
 end
 
 
-
 ############### Cootes images (from ICAAM) ###################
 
 const COOTES_DATA_DIR = joinpath(Pkg.dir(), "FaceDatasets", "data", "cootes", "data")
@@ -192,10 +221,55 @@ function load_images_cootes(;count=-1)
 end
 
 
+############### Kaggle FER Competition ###################
+# See https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge/ for details
+
+
+function load_images_kaggle_fer(datadir::AbstractString)
+    datafile = joinpath(datadir, "fer2013.csv")
+    if !isfile(datafile)
+        throw(ArgumentError("Expected to have CSV file at $datafile"))
+    end
+    n_images = 35887
+    imgs = Vector{Matrix{Float64}}(n_images)
+    open(datafile) do f
+        readline(f) # skip header
+        for (i, line) in zip(1:n_images, eachline(f))
+            label, data, _ = split(line, ",")
+            arr = [parse(Float64, s) for s in split(data, " ")] / 255
+            img = reshape(arr, 48, 48)'
+            imgs[i] = img
+            if i % 1000 == 0
+                info("Loaded $i images")
+            end
+        end
+    end
+    return imgs
+end
+
+
+function load_labels_kaggle_fer(datadir::AbstractString)
+    datafile = joinpath(datadir, "fer2013.csv")
+    if !isfile(datafile)
+        throw(ArgumentError("Expected to have CSV file at $datafile"))
+    end
+    n_images = 35887
+    labels = Vector{Float64}(n_images)
+    open(datafile) do f
+        readline(f) # skip header
+        for (i, line) in zip(1:n_images, eachline(f))
+            label, data, _ = split(line, ",")
+            labels[i] = parse(Float64, label)
+        end
+    end
+    return labels
+end
+
+
 
 ################## Generic functions ######################
 
-const AVAILABLE_DATASETS = [:ck, :cootes]
+const AVAILABLE_DATASETS = [:ck, :ck_max, :cootes, :kaggle_fer]
 
 
 function load_images(dataset_name::Symbol; datadir="", start=1, count=-1,
@@ -206,7 +280,9 @@ function load_images(dataset_name::Symbol; datadir="", start=1, count=-1,
     elseif dataset_name == :ck_max
         return load_images_ck_max(datadir, resizeratio=resizeratio)
     elseif dataset_name == :cootes
-        return load_images_cootes(count=count)        
+        return load_images_cootes(count=count)
+    elseif dataset_name == :kaggle_fer
+        return load_images_kaggle_fer(datadir)    
     else
         error("Dataset $dataset_name is not supported, " *
               "available datasets: $AVAILABLE_DATASETS")
@@ -224,7 +300,25 @@ function load_shapes(dataset_name::Symbol;
         return load_shapes_ck_max(datadir, resizeratio=resizeratio)
     elseif dataset_name == :cootes
         return load_shapes_cootes(count=count)
-     else
+    elseif dataset_name == :kaggle_fer
+        error(":kaggle_fer dataset doesn't provide shape data")    
+    else 
+        error("Dataset $dataset_name is not supported, available datasets: $AVAILABLE_DATASETS")
+    end
+end
+
+
+function load_labels(dataset_name::Symbol;
+                     datadir="")
+    if dataset_name == :ck
+        return load_labels_ck(datadir)
+    elseif dataset_name == :ck_max
+        return load_labels_ck(datadir)
+    elseif dataset_name == :cootes
+        error(":cootes dataset doesn't provide labels")
+    elseif dataset_name == :kaggle_fer
+        return load_labels_kaggle_fer(datadir)    
+    else
         error("Dataset $dataset_name is not supported, available datasets: $AVAILABLE_DATASETS")
     end
 end
