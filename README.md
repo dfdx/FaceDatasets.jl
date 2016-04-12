@@ -21,7 +21,7 @@ Note, that all methods return iterable objects: for small datasets they are just
 
 ## Available datasets
 
-# Cootes images
+### Cootes images
 
 `CootesDataset` contains images from Tim Cootes' work on active appearance models. These images come prepacked, so you can use them for testing.
 
@@ -29,7 +29,7 @@ Supported functions:
  * `load_images(CootesDataset)`
  * `load_shapes(CootesDataset)`
 
-# Cohn-Kanade+ dataset
+### Cohn-Kanade+ dataset
 
 `CKDataset` contains images from [Cohn-Kanade+ Expression Database](http://www.pitt.edu/~emotion/ck-spread.htm). To install this dataset, download it from [this page](http://www.consortium.ri.cmu.edu/ckagree/) and unpack into a directory of your choice. Example of expected directory layout:
 
@@ -72,7 +72,7 @@ Options:
  * `resizeratio` - resize image by this value
 
 
-# Cohn-Kanade+ (max only) dataset
+### Cohn-Kanade+ (max only) dataset
 
 `CKMaxDataset` - same as Cohn-Kanade+ dataset, but contains only images with maximally expressed emotion (~500 images). Only `resizeration` option is supported, though.
 

@@ -18,14 +18,20 @@ function shape_to_image_path(shape_path)
 end
 
 
-function load_images(::Type{PutFrontalDataset}, datadir::AbstractString)
+function load_images(::Type{PutFrontalDataset}, datadir::AbstractString;
+                     downscale_times::Int=3)
     contourdir = joinpath(datadir, "contours")
     contourfiles = walkdir(contourdir)
     files = map(shape_to_image_path, contourfiles)
     function it()
         for file in files
             img = Images.load(file)
-            produce(rgb2arr(img))
+            # downscale if needed
+            for i=1:downscale_times
+                img = restrict(img)
+            end
+            arr = rgb2arr(img)            
+            produce(arr)
         end
     end
     return @task it()
@@ -42,12 +48,15 @@ function load_shape_put(path::AbstractString)
     return hcat(ys, xs)  # ij coordinates 
 end
 
-function load_shapes(::Type{PutFrontalDataset}, datadir::AbstractString)
+function load_shapes(::Type{PutFrontalDataset}, datadir::AbstractString;
+                     downscale_times::Int=3)
     contourdir = joinpath(datadir, "contours")
     files = walkdir(contourdir)
     function it()
         for file in files
-            produce(load_shape_put(file))
+            shape = load_shape_put(file)
+            downscaled = shape ./ (2^(downscale_times))
+            produce(downscaled)
         end
     end
     return @task it()
